@@ -1,10 +1,11 @@
 from PySide6.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QSlider, QFileDialog, QComboBox, QProgressBar
 from PySide6.QtGui import QPixmap, QImage
-from PIL import Image
+from PIL import Image, ImageQt
 from PySide6.QtCore import Qt
 import functions
 import histogram as hs
 import filtr as f
+import statyczne as s
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -22,6 +23,7 @@ class MainWindow(QMainWindow):
                                'Hard light', 'Soft light', 'Color dodge', 'Color burn',
                                'Reflect', 'Transparency']
         self.tryblist = ['Liniowa', 'Kwadratowa']
+        self.mask_size = 3
 
         self.pil_image = None
         self.second_image = None
@@ -80,6 +82,37 @@ class MainWindow(QMainWindow):
         self.btn_pion.clicked.connect(self.btn_pion_clicked)
         self.btn_poz.clicked.connect(self.btn_poz_clicked)
         
+        self.btn_set = QPushButton('Uzyj aktualnego', self)
+        self.btn_set.clicked.connect(self.USEACTUAL)
+        
+        self.btn_save = QPushButton('Save', self)
+        self.btn_save.clicked.connect(self.save_qimage_dialog)
+        
+        self.btn_min = QPushButton('Min', self)
+        self.btn_min.clicked.connect(self.static_min)
+        
+        self.btn_max = QPushButton('Max', self)
+        self.btn_max.clicked.connect(self.static_max)
+        
+        
+        self.btn_median = QPushButton('Median', self)
+        self.btn_median.clicked.connect(self.static_median)
+        
+        
+        self.static_filter_slider = QSlider(Qt.Horizontal, self)
+        self.static_filter_slider.setRange(3,20)
+        self.static_filter_slider.setValue(3)
+        self.static_filter_slider.setTickInterval(1)
+        self.static_filter_slider.valueChanged.connect(self.mask_value_change)
+        
+        self.contrast_slider = QSlider(Qt.Horizontal, self)
+        self.contrast_slider.setRange(1,100)
+        self.contrast_slider.setValue(1)
+        self.contrast_slider.setTickInterval(1)
+        self.contrast_slider.valueChanged.connect(self.contrast_changed)
+        
+        
+        
 
         # Dodaj przycisk i slider do interfejsu użytkownika
         self.button.move(10, 10)
@@ -94,10 +127,30 @@ class MainWindow(QMainWindow):
         self.filtr_options.move(10, 210)
         self.btn_pion.move(120, 210)
         self.btn_poz.move(120, 250)
+        self.btn_set.move(340, 10)
+        self.btn_save.move(450, 10)
+        self.btn_min.move(10, 290)
+        self.btn_max.move(120, 290)
+        self.btn_median.move(230, 290)
+        self.static_filter_slider.move(10, 250)
+        self.contrast_slider.move(10, 370)
+        
+        
+        
+        
+        
 
         # Przechowaj referencję do obrazu
         self.pil_image = None
         
+    def mask_value_change(self, value):
+        self.mask_size = value
+        
+    def contrast_changed(self, value):
+        if not self.pil_image:
+            return
+        pil_image = f.adjust_contrast(self.pil_image, value)
+        self.SETIMAGE(pil_image)
         
     def SETIMAGE(self, pil_image):
         # Przekonwertuj obraz PIL na format, który może być wyświetlony w etykiecie PySide6
@@ -105,6 +158,15 @@ class MainWindow(QMainWindow):
 
         # Wyświetl obraz na etykiecie
         self.image_label.setPixmap(self.q_image)
+        
+    
+        
+        
+    def USEACTUAL(self):
+        if self.pil_image == None:
+            return
+        self.pil_image = self.convert_qimage_to_pil(self.q_image)
+        
         
     def filtr_options_changed(self, value):
         self.filtrtryb = value
@@ -117,8 +179,27 @@ class MainWindow(QMainWindow):
             self.btn_poz.setText("Poziomy")
             self.btn_poz.move(120,250)
             
-
-
+            
+            
+    def static_min(self):
+        if not self.pil_image:
+            return
+        pil_image = s.static_min_filter(self.pil_image, self.mask_size)
+        self.SETIMAGE(pil_image)
+    
+    
+    def static_max(self):
+        if not self.pil_image:
+            return
+        pil_image = s.static_max_filter(self.pil_image, self.mask_size)
+        self.SETIMAGE(pil_image)
+        
+    def static_median(self):
+        if not self.pil_image:
+            return
+        pil_image = s.median_filter(self.pil_image, self.mask_size)
+        self.SETIMAGE(pil_image)
+                
     def btn_pion_clicked(self):
         if not self.pil_image:
             return
@@ -161,11 +242,14 @@ class MainWindow(QMainWindow):
 
 
     def convert_pil_to_qimage(self, pil_image):
-        # Konwertuj obraz PIL na format QImage
         image_data = pil_image.convert("RGBA").tobytes("raw", "RGBA")
         q_image = QImage(image_data, pil_image.size[0], pil_image.size[1], QImage.Format_RGBA8888)
 
         return q_image
+    
+    def convert_qimage_to_pil(self, qimage):
+        image = ImageQt.fromqimage(qimage)
+        return image.convert("RGB")
     
     def adjust_brightness(self, value):
         self.brightness = value
@@ -271,6 +355,22 @@ class MainWindow(QMainWindow):
         # self.slider.valueChanged.connect(self.adjust_brightness)
         # nowa jasnosc
         self.slider.valueChanged.connect(self.new_adjust_brightness)
+    
+    
+    
+    def save_qimage_dialog(self):
+        
+        if self.pil_image==None:
+            return
+        
+        save_dialog = QFileDialog()
+        save_dialog.setWindowTitle("Save Image")
+        save_dialog.setAcceptMode(QFileDialog.AcceptSave)
+        save_dialog.setNameFilter("Images (*.png *.jpg *.bmp)")
+
+        if save_dialog.exec():
+            selected_file = save_dialog.selectedFiles()[0]
+            self.q_image.save(selected_file)
         
             
             

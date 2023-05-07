@@ -59,7 +59,7 @@ def filtrRPSnp(Img, tryb):
     return result_img
                 
                 
-def filtrRPS(Img, tryb, window):
+def filtrRPS(Img, tryb):
     result_img = Image.new('RGB', Img.size)
     w, h = Img.size
     if tryb == 0:
@@ -95,3 +95,16 @@ def filtrRPS(Img, tryb, window):
             
     
     return result_img
+
+def adjust_contrast(image, factor):
+    img_array = np.array(image)
+
+    mean_values = np.mean(img_array, axis=(0, 1))
+
+    adjusted_array = (img_array - mean_values) * factor + mean_values
+
+    adjusted_array = np.clip(adjusted_array, 0, 255)
+
+    adjusted_image = Image.fromarray(adjusted_array.astype(np.uint8))
+
+    return adjusted_image
